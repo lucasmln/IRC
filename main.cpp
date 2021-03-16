@@ -6,13 +6,22 @@
 /*   By: lucas <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/03/09 12:23:41 by lucas             #+#    #+#             */
-/*   Updated: 2021/03/15 18:02:14 by lucas            ###   ########.fr       */
+/*   Updated: 2021/03/16 15:18:00 by lmoulin          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "./includes/IRCserv.hpp"
 #include <stdio.h>
+
 #define PORT 23
+
+#ifndef SOCK_NONBLOCK
+# define SOCK_NONBLOCK 2048
+#endif
+
+#ifndef O_NONBLOCK
+# define O_NONBLOCK 4
+#endif
 
 void		sig_handler(int signal)
 {
@@ -25,45 +34,49 @@ void		sig_handler(int signal)
 	}
 }
 
-int main(void)
+int			setup_server()
 {
+	SOCKET		sock;
 	SOCKADDR_IN sin;
-	socklen_t recsize = sizeof(sin);
 
-	SOCKADDR_IN csin;
-	socklen_t crecsize = sizeof(csin);
+	#ifdef __APPLE__
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+		fcntl(sock, F_SETFL, O_NONBLOCK);
+	#endif
+	#ifdef __linux__
+		sock = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK);
+	#endif
 
-	signal(SIGINT, sig_handler);
-	int sock_err;
+	if (sock == INVALID_SOCKET)
+		throw std::exception();
 
-	g_serv_sock = socket(PF_INET, SOCK_STREAM, 0);
-
-	if (g_serv_sock == INVALID_SOCKET)
-	{
-		perror("socket");
-		return (1);
-	}
-	std::cout << "La socket %d " << g_serv_sock << " est maintenant ouverte en mode TCP/IP\n";
+	std::cout << "Le socket %d " << g_serv_sock << " est maintenant ouverte en mode TCP/IP\n";
 
 	sin.sin_addr.s_addr = INADDR_ANY;
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(PORT);
-	sock_err = bind(g_serv_sock, (SOCKADDR*)&sin, recsize);
 
-	if (sock_err == SOCKET_ERROR)
-	{
-		perror("bind");
-		return (1);
-	}
-	sock_err = listen(g_serv_sock, 5);
+	if (bind(sock, (SOCKADDR*)&sin, sizeof(sin)) == SOCKET_ERROR)
+		throw std::exception();
+
+	if (listen(sock, 5) == SOCKET_ERROR)
+		throw std::exception();
 	std::cout << "Listage du port %d" << PORT << "...\n";
 
-	if (sock_err == SOCKET_ERROR)
-	{
-		perror("listen");
-		return (1);
-	}
+	g_serv_sock = sock;
+	return (0);
+}
 
+int			main(void)
+{
+	SOCKADDR_IN csin;
+	int sock_err;
+
+	socklen_t crecsize = sizeof(csin);
+
+	signal(SIGINT, sig_handler);
+
+	setup_server();
 	std::cout << "Patientez pendant que le client se connecte sur le port %d " << PORT << "...\n";
 
 	char			entry[256];
@@ -71,7 +84,7 @@ int main(void)
 	t_select		sel;
 	int				nb_client;
 
-	strcpy(&entry[0], "Salut a toi qui vient de te connecter");
+	strcpy(&entry[0], "Salut a toi qui vient de te connecter\n");
 	bzero(buf, 256);
 	nb_client = 0;
 	while (1)
@@ -111,9 +124,9 @@ int main(void)
 				buf[sock_err] = '\0';
 				if (buf[0] != '\0')
 				{
-					std::cout << buf << std::endl;
+					std::cout << buf;
 					size_t k = 0;
-					while (k < 2)
+					while (k < g_cli_sock.size())
 					{
 						if (k != i)
 							send(g_cli_sock[k], buf, strlen(buf) + 1, 0);

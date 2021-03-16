@@ -6,7 +6,7 @@
 /*   By: lucas <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/03/09 18:15:22 by lucas             #+#    #+#             */
-/*   Updated: 2021/03/15 17:58:07 by lucas            ###   ########.fr       */
+/*   Updated: 2021/03/16 14:58:24 by lmoulin          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,7 @@ typedef struct sockaddr SOCKADDR;
 # include <sys/time.h>
 # include <sys/select.h>
 # include <signal.h>
+# include <fcntl.h>
 # include <iostream>
 # include <vector>
 
